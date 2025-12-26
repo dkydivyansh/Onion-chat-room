@@ -1,2 +1,0 @@
-# Onion chat room
-

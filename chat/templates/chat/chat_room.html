@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat | Secure</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --border-color: #ffffff;
+            --accent-color: #00ff00;
+            --error-color: #ff3333;
+        }
+
+        body { 
+            font-family: "Courier New", Courier, monospace; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            margin: 0; 
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Prevent body scroll */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- LAYOUT STRUCTURE --- */
+        /* Takes full screen, no floating container */
+        .header { 
+            flex-shrink: 0;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 15px 20px; 
+            border-bottom: 2px solid var(--border-color); 
+            background: var(--bg-color);
+        }
+
+        .chat-window { 
+            flex-grow: 1; 
+            background: var(--bg-color); 
+            padding: 20px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+        }
+
+        .input-area { 
+            flex-shrink: 0;
+            padding: 20px; 
+            border-top: 2px solid var(--border-color); 
+            background: var(--bg-color); 
+        }
+
+        /* --- HEADER ELEMENTS --- */
+        .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; }
+        .status-indicator { 
+            height: 10px; width: 10px; 
+            background-color: #333; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-left: 10px; 
+            border: 1px solid #fff;
+        }
+        .status-indicator.online { background-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
+        
+        .header-controls { display: flex; gap: 10px; }
+        .header-controls a, .header-controls button { 
+            color: var(--text-color); 
+            text-decoration: none; 
+            border: 1px solid var(--border-color); 
+            background: #000;
+            padding: 5px 10px; 
+            font-size: 0.8rem; 
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .header-controls a:hover, .header-controls button:hover { background: var(--text-color); color: var(--bg-color); }
+        .btn-delete { border-color: var(--error-color) !important; color: var(--error-color) !important; }
+        .btn-delete:hover { background: var(--error-color) !important; color: #000 !important; }
+
+        /* --- MESSAGES --- */
+        .message { 
+            max-width: 80%; 
+            padding: 12px 18px; 
+            word-wrap: break-word; 
+            line-height: 1.5;
+            position: relative;
+        }
+        
+        .message.sent { 
+            align-self: flex-end; 
+            background-color: var(--text-color); 
+            color: var(--bg-color); 
+            border: 1px solid var(--text-color);
+        }
+        
+        .message.received { 
+            align-self: flex-start; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            border: 1px solid var(--border-color); 
+        }
+
+        /* --- INPUT FORM --- */
+        .message-form { display: flex; gap: 15px; }
+        
+        .message-form textarea { 
+            flex-grow: 1; 
+            padding: 12px; 
+            background: #000; 
+            color: #fff; 
+            border: 1px solid #fff; 
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+            height: 50px;
+        }
+        .message-form textarea:focus { outline: none; border-color: var(--accent-color); }
+        
+        .message-form button { 
+            padding: 0 30px; 
+            background: #fff; 
+            color: #000; 
+            border: none; 
+            font-weight: bold; 
+            cursor: pointer;
+            text-transform: uppercase;
+            font-family: inherit;
+        }
+        .message-form button:hover:not(:disabled) { background: #ccc; }
+        .message-form button:disabled { background: #333; color: #777; cursor: not-allowed; }
+
+        /* --- FILE CONTROLS --- */
+        .file-controls { margin-top: 15px; display: flex; align-items: center; }
+        .file-controls label { 
+            background: #000; 
+            border: 1px dashed #fff; 
+            color: #aaa; 
+            padding: 8px 12px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+            text-transform: uppercase;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .file-controls label:hover { color: #fff; border-color: #fff; }
+        .file-controls label.disabled { border-color: #333; color: #333; cursor: not-allowed; }
+        .file-controls input { display: none; }
+
+        /* --- FILE MESSAGES --- */
+        .file-message { 
+            background-color: #111; 
+            border: 1px solid #fff; 
+            padding: 15px; 
+            width: 100%; 
+            max-width: 320px;
+            margin-bottom: 5px;
+        }
+        .file-message.sent { align-self: flex-end; background: #222; }
+        
+        .file-info { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 0.9em; }
+        .progress-bar-container { width: 100%; background: #333; height: 8px; margin: 10px 0; }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--accent-color); }
+        
+        .file-actions button { 
+            background: #000; border: 1px solid #fff; color: #fff; 
+            padding: 5px 10px; margin-right: 8px; cursor: pointer; font-size: 0.8rem; font-family: inherit;
+        }
+        .file-actions button:hover { background: #fff; color: #000; }
+        .status-text { font-style: italic; color: #888; font-size: 0.85rem; }
+        .status-text.error { color: var(--error-color); }
+
+        /* --- MODAL STYLES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: #000;
+            border: 2px solid #fff;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255,255,255,0.1);
+        }
+        .modal-box h2 { border-bottom: 1px solid #fff; padding-bottom: 15px; margin-top: 0; font-size: 1.5rem; }
+        .modal-box input {
+            width: 100%; padding: 15px; margin: 20px 0;
+            background: #000; color: #fff; border: 1px solid #666;
+            box-sizing: border-box; text-align: center; font-size: 1.1rem;
+        }
+        .modal-box button {
+            width: 100%; padding: 15px; background: #fff; color: #000;
+            border: none; font-weight: bold; cursor: pointer; 
+            text-transform: uppercase; font-size: 1rem;
+        }
+        .modal-error { color: var(--error-color); margin-top: 15px; font-weight: bold; min-height: 1.5em;}
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .header { padding: 10px; }
+            .header h1 { font-size: 1rem; }
+            .header-controls span { display: none; } /* Hide text, keep icons if added later */
+            .chat-window { padding: 10px; }
+            .message { max-width: 90%; }
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="password-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>SYSTEM LOCKED</h2>
+            <p>DECRYPTION REQUIRED</p>
+            <form id="modal-form">
+                <input type="password" id="modal-password" placeholder="ENTER PASSWORD" autocomplete="current-password" autofocus>
+                <button type="submit">UNLOCK TERMINAL</button>
+                <p id="modal-error" class="modal-error"></p>
+            </form>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="user-info">
+             <h1>CONNECTION: {{ other_user.username }}</h1>
+             <span id="status-indicator" class="status-indicator" title="Offline"></span>
+        </div>
+        <div class="header-controls">
+            <a href="{% url 'dashboard_page' %}">EXIT</a>
+            <button class="btn-clear" onclick="clearChatHistory('{{ chat_room.id }}')">CLEAR</button>
+            <button class="btn-delete" onclick="deleteChatRoom('{{ chat_room.id }}')">NUKE</button>
+        </div>
+    </div>
+
+    <div class="chat-window" id="chat-window">
+        <p style="color: #666; text-align: center; margin-top: 20px;">> SECURE CHANNEL INITIALIZED.</p>
+        <p style="color: #666; text-align: center;">> WAITING FOR AUTHENTICATION...</p>
+    </div>
+
+    <div class="input-area">
+        <form class="message-form" id="message-form">
+            <textarea id="message-input" placeholder="> Decrypting keys..." autocomplete="off" disabled></textarea>
+            <button type="submit" disabled>SEND</button>
+        </form>
+        
+        <div class="file-controls">
+            <label for="file-input" id="file-label">[ UPLOAD ENCRYPTED FILE ]</label>
+            <input type="file" id="file-input" disabled>
+        </div>
+    </div>
+
+    <script>
+        const chatRoomId = '{{ chat_room.id }}';
+        const currentUser = '{{ username }}';
+        const otherUser = '{{ other_user.username }}';
+
+        const chatWindow = document.getElementById('chat-window');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = messageForm.querySelector('button');
+        const fileInput = document.getElementById('file-input');
+        const fileLabel = document.getElementById('file-label');
+        
+        const passwordModal = document.getElementById('password-modal');
+        const modalForm = document.getElementById('modal-form');
+        const modalPasswordInput = document.getElementById('modal-password');
+        const modalError = document.getElementById('modal-error');
+
+        let chatSocket = null;
+        let otherUserPublicKey = null;
+        let myPrivateKey = null;
+        let fileTransferStates = {}; 
+        let isFileTransferInProgress = false;
+        const CHUNK_SIZE = 256 * 1024;
+        const WINDOW_SIZE = 16;
+
+        // --- CRYPTO HELPERS (Identical to previous) ---
+        const cryptoHelpers = {
+            base64ToArrayBuffer: (base64) => { const binaryString = window.atob(base64); const len = binaryString.length; const bytes = new Uint8Array(len); for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); } return bytes.buffer; },
+            arrayBufferToBase64: (buffer) => { let binary = ''; const bytes = new Uint8Array(buffer); for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); } return window.btoa(binary); },
+            deriveKeyFromPassword: async (password, salt) => { const enc = new TextEncoder(); const keyMaterial = await window.crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']); return await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']); },
+            decryptPrivateKey: async (encryptedData, password) => { const salt = cryptoHelpers.base64ToArrayBuffer(encryptedData.salt); const iv = cryptoHelpers.base64ToArrayBuffer(encryptedData.iv); const data = cryptoHelpers.base64ToArrayBuffer(encryptedData.ciphertext); const aesKey = await cryptoHelpers.deriveKeyFromPassword(password, salt); const decryptedPkcs8 = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, aesKey, data); return await window.crypto.subtle.importKey("pkcs8", decryptedPkcs8, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["decrypt"]); },
+            importPublicKey: async (keyB64) => { const spki = cryptoHelpers.base64ToArrayBuffer(keyB64); return await window.crypto.subtle.importKey("spki", spki, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["encrypt"]); },
+            hybridEncrypt: async (rsaPublicKey, message) => { const aesKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]); const iv = window.crypto.getRandomValues(new Uint8Array(12)); const encodedMessage = new TextEncoder().encode(message); const encryptedMessageBuffer = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, aesKey, encodedMessage); const exportedAesKeyBuffer = await window.crypto.subtle.exportKey("raw", aesKey); const rsaEncryptedAesKeyBuffer = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, rsaPublicKey, exportedAesKeyBuffer); const payload = { iv: cryptoHelpers.arrayBufferToBase64(iv), rsaEncryptedAesKey: cryptoHelpers.arrayBufferToBase64(rsaEncryptedAesKeyBuffer), encryptedMessage: cryptoHelpers.arrayBufferToBase64(encryptedMessageBuffer) }; return JSON.stringify(payload); },
+            hybridDecrypt: async (rsaPrivateKey, payloadString) => { const payload = JSON.parse(payloadString); const rsaEncryptedAesKeyBuffer = cryptoHelpers.base64ToArrayBuffer(payload.rsaEncryptedAesKey); const aesKeyBuffer = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, rsaPrivateKey, rsaEncryptedAesKeyBuffer); const aesKey = await window.crypto.subtle.importKey("raw", aesKeyBuffer, { name: "AES-GCM" }, true, ["decrypt"]); const iv = cryptoHelpers.base64ToArrayBuffer(payload.iv); const encryptedMessageBuffer = cryptoHelpers.base64ToArrayBuffer(payload.encryptedMessage); const decryptedMessageBuffer = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, aesKey, encryptedMessageBuffer); return new TextDecoder().decode(decryptedMessageBuffer); },
+            generateAesKey: async () => await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]),
+            encryptChunk: async (aesKey, chunk) => { const iv = window.crypto.getRandomValues(new Uint8Array(12)); const encryptedChunk = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, chunk); const combined = new Uint8Array(iv.length + encryptedChunk.byteLength); combined.set(iv); combined.set(new Uint8Array(encryptedChunk), iv.length); return combined.buffer; },
+            decryptChunk: async (aesKey, combinedChunk) => { const iv = combinedChunk.slice(0, 12); const chunk = combinedChunk.slice(12); return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, chunk); },
+            calculateHash: async (blob) => { const buffer = await blob.arrayBuffer(); const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer); const hashArray = Array.from(new Uint8Array(hashBuffer)); return hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); }
+        };
+
+async function handleSendMessage() {
+    const message = messageInput.value.trim();
+    
+    // Safety check: Is connection open?
+    if (chatSocket.readyState !== WebSocket.OPEN) {
+        alert("Connection lost. Please wait.");
+        return;
+    }
+
+    if (!message) return; // Don't send empty messages
+
+    if (otherUserPublicKey && myPrivateKey) {
+        try {
+            // Lock input to prevent double-sends
+            messageInput.disabled = true;
+
+            const myPublicKeyB64 = JSON.parse(localStorage.getItem('anonymousChatEncryptedIdentity')).publicKey;
+            const myImportedPublicKey = await cryptoHelpers.importPublicKey(myPublicKeyB64);
+            
+            const encryptedForOther = await cryptoHelpers.hybridEncrypt(otherUserPublicKey, message);
+            const encryptedForSelf = await cryptoHelpers.hybridEncrypt(myImportedPublicKey, message);
+            
+            const payload = { [currentUser]: encryptedForSelf, [otherUser]: encryptedForOther };
+            
+            chatSocket.send(JSON.stringify({ 'type': 'chat_message', 'message': JSON.stringify(payload) }));
+            appendMessage(currentUser, message, true);
+            messageInput.value = '';
+        } catch (err) { 
+            console.error("Send Error:", err); 
+        } finally {
+            // Unlock input
+            messageInput.disabled = false;
+            messageInput.focus();
+        }
+    }
+}
+        
+        function appendMessage(sender, message, isSentByMe) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isSentByMe ? 'sent' : 'received'}`;
+            msgDiv.textContent = message;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+        
+        function appendFileMessage(transferId, fileMeta, isSentByMe) {
+            const fileMessageDiv = document.createElement('div');
+            fileMessageDiv.id = `transfer-${transferId}`;
+            fileMessageDiv.className = `file-message ${isSentByMe ? 'sent' : 'received'}`;
+            const sizeMb = (fileMeta.size / 1024 / 1024).toFixed(2);
+            fileMessageDiv.innerHTML = `
+                <div class="file-info">
+                    <span>${fileMeta.name}</span>
+                    <span class="file-meta">${sizeMb} MB</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="progress-${transferId}" class="progress-bar"></div>
+                </div>
+                <div id="actions-${transferId}" class="file-actions">
+                    <span class="status-text" id="status-${transferId}">WAITING...</span>
+                </div>`;
+            chatWindow.appendChild(fileMessageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // --- AUTHENTICATION & SOCKET SETUP ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            const storedIdentity = localStorage.getItem('anonymousChatEncryptedIdentity');
+            if (!storedIdentity) {
+                alert("Identity lost. Re-login required.");
+                window.location.href = "{% url 'login_page' %}";
+                return;
+            }
+            
+            modalPasswordInput.focus();
+
+            modalForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const password = modalPasswordInput.value;
+                modalError.textContent = "DECRYPTING...";
+                
+                try {
+                    myPrivateKey = await cryptoHelpers.decryptPrivateKey(JSON.parse(storedIdentity).encryptedPrivateKey, password);
+                    passwordModal.classList.add('hidden');
+                    chatWindow.innerHTML = '<p style="color: #666; text-align: center;">> IDENTITY CONFIRMED.</p>';
+                    setupWebSocket();
+                    setupEventListeners();
+                } catch (e) {
+                    modalError.textContent = "ACCESS DENIED. INVALID PASSWORD.";
+                    modalPasswordInput.value = "";
+                }
+            });
+        });
+
+        function setupWebSocket() {
+            chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${chatRoomId}/`);
+            chatSocket.binaryType = 'arraybuffer';
+
+            chatSocket.onopen = () => {
+                chatSocket.send(JSON.stringify({ 'type': 'get_public_key', 'username': otherUser }));
+                fetchHistory();
+            };
+
+            chatSocket.onmessage = async (e) => {
+                if (e.data instanceof ArrayBuffer) {
+                    const transferId = new Uint32Array(e.data.slice(0, 4))[0];
+                    const chunk = e.data.slice(4);
+                    handleFileChunk(transferId, chunk);
+                    return;
+                }
+                const data = JSON.parse(e.data);
+                switch (data.type) {
+                    case 'user_status':
+                        const statusIndicator = document.getElementById('status-indicator');
+                        if (data.username === otherUser) {
+                            statusIndicator.classList.toggle('online', data.status === 'online');
+                            statusIndicator.title = data.status === 'online' ? 'Online' : 'Offline';
+                        }
+                        break;
+                    case 'public_key_response':
+                        try {
+                            otherUserPublicKey = await cryptoHelpers.importPublicKey(data.public_key);
+                            messageInput.disabled = false; sendButton.disabled = false; messageInput.placeholder = "> Enter message...";
+                            setFileTransferLock(false);
+                        } catch(e) { console.error("Key Error:", e); }
+                        break;
+                    case 'chat_message_broadcast':
+                        if (data.sender !== currentUser) {
+                            try {
+                                const payload = JSON.parse(data.payload);
+                                const myEncryptedPayload = payload[currentUser];
+                                if (myEncryptedPayload) {
+                                     const decryptedMessage = await cryptoHelpers.hybridDecrypt(myPrivateKey, myEncryptedPayload);
+                                     appendMessage(data.sender, decryptedMessage, false);
+                                }
+                            } catch (err) { console.error("Decrypt Error:", err); }
+                        }
+                        break;
+                    case 'history_cleared':
+                        chatWindow.innerHTML = '<p style="color: #666; text-align: center;">> CHAT LOGS PURGED.</p>';
+                        break;
+                    case 'file_transfer_offer': handleFileOffer(data); break;
+                    case 'file_transfer_response': handleFileResponse(data); break;
+                    case 'window_ack': sendNextWindow(data.transfer_id); break;
+                    case 'file_transfer_end': handleFileEnd(data.transfer_id); break;
+                    case 'file_transfer_cancel': handleFileCancel(data.transfer_id); break;
+                }
+            };
+            chatSocket.onclose = () => {
+                setTimeout(setupWebSocket, 3000);
+                const statusIndicator = document.getElementById('status-indicator');
+                statusIndicator.classList.remove('online');
+                messageInput.disabled = true; sendButton.disabled = true;
+            };
+        }
+
+function setupEventListeners() {
+            // REMOVED: Enter key listener is gone.
+            
+            // Only the Send Button (Form Submit) triggers sending now
+            messageForm.onsubmit = (e) => {
+                e.preventDefault(); // STOP the page reload
+                handleSendMessage(); // Run the code directly
+            };
+
+            // File Upload Listener
+            fileInput.addEventListener('change', handleFileSelection);
+        }
+        function setFileTransferLock(isLocked) {
+            isFileTransferInProgress = isLocked;
+            fileInput.disabled = isLocked;
+            fileLabel.classList.toggle('disabled', isLocked);
+            if(isLocked) fileLabel.innerHTML = "[ BUSY ]"; else fileLabel.innerHTML = "[ UPLOAD ENCRYPTED FILE ]";
+        }
+
+        function generateTransferId() { return Math.floor(Math.random() * 2**32); }
+
+        async function handleFileSelection(e) {
+            const file = e.target.files[0];
+            if (!file || !otherUserPublicKey) return;
+            if (isFileTransferInProgress) { alert("Transfer in progress."); fileInput.value = ""; return; }
+            setFileTransferLock(true);
+            const transferId = generateTransferId();
+            appendFileMessage(transferId, file, true);
+            const statusElem = document.getElementById(`status-${transferId}`);
+            statusElem.textContent = "> Hashing...";
+            try {
+                const fileHash = await cryptoHelpers.calculateHash(file);
+                statusElem.textContent = "> Offering...";
+                const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+                const aesKey = await cryptoHelpers.generateAesKey();
+                const exportedAesKeyRaw = await window.crypto.subtle.exportKey("raw", aesKey);
+                const rsaEncryptedAesKey = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, otherUserPublicKey, exportedAesKeyRaw);
+                chatSocket.send(JSON.stringify({
+                    type: 'file_transfer_offer', transfer_id: transferId,
+                    file: { name: file.name, size: file.size, type: file.type, total_chunks: totalChunks, hash: fileHash },
+                    encrypted_key: cryptoHelpers.arrayBufferToBase64(rsaEncryptedAesKey)
+                }));
+                fileTransferStates[transferId] = { file, aesKey, isSending: true, isCancelled: false };
+            } catch (err) { statusElem.textContent = "Error"; handleFileCancel(transferId); }
+            fileInput.value = "";
+        }
+
+        async function handleFileOffer(data) {
+            const { transfer_id, file, encrypted_key } = data;
+            if (isFileTransferInProgress) { chatSocket.send(JSON.stringify({ type: 'file_transfer_response', transfer_id: transfer_id, accepted: false, reason: 'busy' })); return; }
+            setFileTransferLock(true);
+            appendFileMessage(transfer_id, file, false);
+            const actionsDiv = document.getElementById(`actions-${transfer_id}`);
+            actionsDiv.innerHTML = `<button id="accept-${transfer_id}">[ACCEPT]</button> <button id="decline-${transfer_id}">[DECLINE]</button>`;
+            document.getElementById(`accept-${transfer_id}`).onclick = async () => {
+                actionsDiv.innerHTML = `<span class="status-text" id="status-${transfer_id}">Accepted...</span>`;
+                try {
+                    const rsaEncryptedKey = cryptoHelpers.base64ToArrayBuffer(encrypted_key);
+                    const decryptedAesKeyRaw = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, myPrivateKey, rsaEncryptedKey);
+                    const aesKey = await window.crypto.subtle.importKey("raw", decryptedAesKeyRaw, "AES-GCM", true, ["encrypt", "decrypt"]);
+                    fileTransferStates[transfer_id] = { chunks: [], isSending: false, fileMeta: file, aesKey, processingQueue: Promise.resolve(), isCancelled: false };
+                    chatSocket.send(JSON.stringify({ type: 'file_transfer_response', transfer_id: transfer_id, accepted: true }));
+                } catch (err) { handleFileError(transfer_id, "Key Error"); chatSocket.send(JSON.stringify({ type: 'file_transfer_response', transfer_id: transfer_id, accepted: false })); }
+            };
+            document.getElementById(`decline-${transfer_id}`).onclick = () => { chatSocket.send(JSON.stringify({ type: 'file_transfer_response', transfer_id: transfer_id, accepted: false })); handleFileCancel(transfer_id, "Declined"); };
+        }
+
+        function handleFileResponse(data) {
+            const { transfer_id, accepted } = data;
+            const state = fileTransferStates[transfer_id];
+            if (!state || !state.isSending) return;
+            if (accepted) {
+                document.getElementById(`status-${transfer_id}`).textContent = "> Sending...";
+                state.chunks = [];
+                for (let i = 0; i < state.file.size; i += CHUNK_SIZE) state.chunks.push(state.file.slice(i, i + CHUNK_SIZE));
+                state.currentChunkIndex = 0;
+                sendNextWindow(transfer_id);
+            } else { handleFileCancel(transfer_id, "Declined"); }
+        }
+
+        async function sendNextWindow(transferId) {
+            const state = fileTransferStates[transferId];
+            if (!state || !state.isSending || state.isCancelled) return;
+            if (state.currentChunkIndex >= state.chunks.length) { chatSocket.send(JSON.stringify({ type: 'file_transfer_end', transfer_id: transferId })); handleFileEnd(transferId); return; }
+            const endOfWindow = Math.min(state.currentChunkIndex + WINDOW_SIZE, state.chunks.length);
+            for (let i = state.currentChunkIndex; i < endOfWindow; i++) {
+                if (state.isCancelled) break;
+                try {
+                    const chunkBuffer = await state.chunks[i].arrayBuffer();
+                    const encryptedChunk = await cryptoHelpers.encryptChunk(state.aesKey, chunkBuffer);
+                    const transferIdBuffer = new Uint32Array([transferId]).buffer;
+                    const payload = new Uint8Array(transferIdBuffer.byteLength + encryptedChunk.byteLength);
+                    payload.set(new Uint8Array(transferIdBuffer), 0);
+                    payload.set(new Uint8Array(encryptedChunk), transferIdBuffer.byteLength);
+                    if(chatSocket.readyState === WebSocket.OPEN) chatSocket.send(payload.buffer);
+                } catch (err) { handleFileError(transferId, "Encrypt Error"); break; }
+            }
+            state.currentChunkIndex = endOfWindow;
+            const progress = (state.currentChunkIndex / state.chunks.length) * 100;
+            const progressBar = document.getElementById(`progress-${transferId}`);
+            if (progressBar) progressBar.style.width = `${progress}%`;
+        }
+
+        function handleFileChunk(transferId, chunk) {
+            const state = fileTransferStates[transferId];
+            if (!state || state.isSending) return;
+            state.processingQueue = state.processingQueue.then(async () => {
+                if (!fileTransferStates[transferId]) return;
+                try {
+                    const decryptedChunk = await cryptoHelpers.decryptChunk(state.aesKey, chunk);
+                    state.chunks.push(decryptedChunk);
+                    const receivedSize = state.chunks.reduce((acc, c) => acc + c.byteLength, 0);
+                    const progress = Math.min(100, (receivedSize / state.fileMeta.size) * 100);
+                    const progressBar = document.getElementById(`progress-${transferId}`);
+                    if(progressBar) progressBar.style.width = `${progress}%`;
+                    document.getElementById(`status-${transferId}`).textContent = "> Receiving...";
+                    if ((state.chunks.length % WINDOW_SIZE === 0) || (state.chunks.length === state.fileMeta.total_chunks)) {
+                         if(chatSocket.readyState === WebSocket.OPEN) chatSocket.send(JSON.stringify({ type: 'window_ack', transfer_id: transferId }));
+                    }
+                } catch (err) { handleFileError(transferId, "Decrypt Error"); }
+            });
+        }
+        
+        async function handleFileEnd(transferId) {
+            const state = fileTransferStates[transferId];
+            if (!state) return;
+            const statusSpan = document.getElementById(`status-${transferId}`);
+            if (state.isSending) {
+                if (statusSpan) statusSpan.textContent = "> Sent.";
+            } else {
+                if (statusSpan) statusSpan.textContent = "> Verifying...";
+                await state.processingQueue;
+                const { name, type, hash: originalHash } = state.fileMeta;
+                const fileBlob = new Blob(state.chunks, { type });
+                const receivedHash = await cryptoHelpers.calculateHash(fileBlob);
+                const actionsDiv = document.getElementById(`actions-${transferId}`);
+                if (receivedHash === originalHash) {
+                    if (statusSpan) statusSpan.textContent = "> Complete.";
+                    actionsDiv.innerHTML = '';
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = '[ DOWNLOAD ]';
+                    downloadBtn.onclick = () => { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 100); };
+                    actionsDiv.appendChild(downloadBtn);
+                } else { handleFileError(transferId, "Hash Mismatch"); }
+            }
+            setFileTransferLock(false);
+            delete fileTransferStates[transferId];
+        }
+        
+        function handleFileError(transferId, message) {
+            const statusSpan = document.getElementById(`status-${transferId}`);
+            if (statusSpan) { statusSpan.textContent = `> ${message}`; statusSpan.classList.add("error"); }
+            setFileTransferLock(false);
+            delete fileTransferStates[transferId];
+        }
+
+        function handleFileCancel(transferId, message = "Cancelled") {
+            const state = fileTransferStates[transferId];
+            if (!state) return;
+            state.isCancelled = true;
+            handleFileError(transferId, message);
+        }
+
+        async function fetchHistory() {
+            try {
+                const response = await fetch(`/api/chats/${chatRoomId}/messages/`);
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    chatWindow.innerHTML = ''; 
+                    for (const msg of data.messages) {
+                        try {
+                            const decryptedMessage = await cryptoHelpers.hybridDecrypt(myPrivateKey, msg.content);
+                            appendMessage(msg.sender, decryptedMessage, msg.sender === currentUser);
+                        } catch(e){ appendMessage(msg.sender, "[ENCRYPTED DATA]", msg.sender === currentUser); }
+                    }
+                }
+            } catch (e) { chatWindow.innerHTML = '<p>> Failed to load history.</p>'; }
+        }
+
+        async function clearChatHistory(roomId) {
+            if (!confirm('DELETE ALL HISTORY?')) return;
+            const res = await fetch(`/api/chats/${roomId}/clear/`, { method: 'POST' });
+            if (res.ok) { window.location.reload(); }
+        }
+        
+        async function deleteChatRoom(roomId) {
+            if (!confirm('DESTROY ROOM?')) return;
+            const res = await fetch(`/api/chats/${roomId}/delete/`, { method: 'POST' });
+            if (res.ok) { window.location.href = "{% url 'dashboard_page' %}"; }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | Anonymous Chat</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --border-color: #ffffff;
+            --success-color: #00ff00;
+            --error-color: #ff3333;
+        }
+
+        body {
+            font-family: "Courier New", Courier, monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            box-sizing: border-box;
+            background: #000;
+            height: auto;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        h1, h2 { text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-top: 0; }
+        p, label { margin-bottom: 10px; display: block; }
+        
+        input[type="text"], input[type="password"], textarea, input[type="file"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            margin-bottom: 15px;
+            background-color: #000;
+            color: #fff;
+            border: 1px solid #666;
+            font-family: inherit;
+            outline: none;
+        }
+
+        input:focus, textarea:focus { border-color: #fff; }
+
+        button {
+            display: inline-block;
+            width: 100%;
+            padding: 12px;
+            background-color: #000;
+            color: #fff;
+            border: 1px solid #fff;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) { background-color: #fff; color: #000; }
+        button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
+
+        .step-container { display: none; }
+        .active { display: block; }
+        
+        .status { margin-top: 15px; font-weight: bold; text-align: center; }
+        .success { color: var(--success-color); }
+        .error { color: var(--error-color); }
+        
+        .footer-link { text-align: center; margin-top: 20px; border-top: 1px solid #333; padding-top: 15px; }
+        .footer-link a { color: #fff; text-decoration: underline; }
+
+        @media (min-width: 600px) {
+            button { width: auto; margin-right: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Register Identity</h1>
+
+        <div id="step1" class="step-container active">
+            <label for="username-input">CHOOSE ALIAS:</label>
+            <input type="text" id="username-input" placeholder="> Enter username..." autocomplete="off">
+            
+            <p>Select Method:</p>
+            <button id="generate-btn">[ GENERATE NEW KEYS ]</button>
+            <button id="import-btn">[ IMPORT EXISTING KEYS ]</button>
+            <p id="step1-status" class="status"></p>
+        </div>
+
+        <div id="step2-generate" class="step-container">
+            <h2>Secure Identity</h2>
+            <p>Keys generated. Set a password to encrypt your private key locally.</p>
+            
+            <label for="password-gen">PASSWORD:</label>
+            <input type="password" id="password-gen" placeholder="> Strong password">
+            <label for="password-confirm-gen">CONFIRM:</label>
+            <input type="password" id="password-confirm-gen" placeholder="> Confirm password">
+            
+            <label>YOUR PUBLIC KEY:</label>
+            <textarea id="public-key-display" rows="4" readonly></textarea>
+            
+            <button id="save-key-btn">DOWNLOAD KEY FILE</button>
+            <div style="margin: 15px 0;">
+                <input type="checkbox" id="confirm-saved-checkbox" style="width: auto; margin-right: 10px;" disabled>
+                <label for="confirm-saved-checkbox" style="display: inline;">I have saved my key file securely.</label>
+            </div>
+            
+            <button id="register-gen-btn" disabled>COMPLETE REGISTRATION</button>
+            <button class="back-btn" data-target="step1">BACK</button>
+            <p id="step2-gen-status" class="status"></p>
+        </div>
+
+        <div id="step2-import" class="step-container">
+            <h2>Import Identity</h2>
+            
+            <label for="password-import">DECRYPTION PASSWORD:</label>
+            <input type="password" id="password-import" placeholder="> Enter password">
+            
+            <label for="upload-key-input">UPLOAD FILE:</label>
+            <input type="file" id="upload-key-input" accept=".txt">
+            
+            <label for="public-key-import">PUBLIC KEY:</label>
+            <textarea id="public-key-import" rows="3" placeholder="> Public key..."></textarea>
+            <label for="private-key-import">ENCRYPTED PRIVATE KEY (JSON):</label>
+            <textarea id="private-key-import" rows="3" placeholder="> JSON Object..."></textarea>
+            
+            <button id="register-import-btn">VALIDATE & REGISTER</button>
+            <button class="back-btn" data-target="step1">BACK</button>
+            <p id="step2-import-status" class="status"></p>
+        </div>
+        
+        <div class="footer-link">
+            <p>Existing user? <a href="{% url 'login_page' %}">LOGIN TERMINAL</a></p>
+        </div>
+    </div>
+
+    <script>
+        const steps = document.querySelectorAll('.step-container');
+        const backButtons = document.querySelectorAll('.back-btn');
+        let currentStep = 'step1';
+        let generatedKeyPair = null;
+        let importedPublicKey = null;
+        let importedEncryptedPrivateKey = null;
+        let currentUsername = '';
+
+        function navigateTo(stepId) {
+            steps.forEach(s => s.classList.remove('active'));
+            document.getElementById(stepId).classList.add('active');
+            currentStep = stepId;
+        }
+
+        backButtons.forEach(btn => {
+            btn.addEventListener('click', () => navigateTo(btn.dataset.target));
+        });
+
+        async function checkUsername(username) {
+            const response = await fetch('/api/check-username/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            return data.available;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+        
+        async function generateRsaKeys() {
+            return await window.crypto.subtle.generateKey(
+                { name: "RSASSA-PKCS1-v1_5", modulusLength: 4096, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+                true, ["sign", "verify"]
+            );
+        }
+
+        async function exportPublicKey(key) {
+            const exported = await window.crypto.subtle.exportKey("spki", key);
+            return arrayBufferToBase64(exported);
+        }
+
+        async function exportPrivateKey(key) {
+            const exported = await window.crypto.subtle.exportKey("pkcs8", key);
+            return exported;
+        }
+
+        async function deriveKeyFromPassword(password, salt) {
+            const encoder = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                'raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']
+            );
+            return await window.crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                true,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptPrivateKey(password, privateKeyBuffer) {
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const aesKey = await deriveKeyFromPassword(password, salt);
+            
+            const encryptedContent = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                aesKey,
+                privateKeyBuffer
+            );
+            
+            return {
+                salt: arrayBufferToBase64(salt),
+                iv: arrayBufferToBase64(iv),
+                ciphertext: arrayBufferToBase64(encryptedContent)
+            };
+        }
+        
+        async function decryptAndValidateKeys(password, publicKeyPem, encryptedPrivateKeyData) {
+            const salt = base64ToArrayBuffer(encryptedPrivateKeyData.salt);
+            const iv = base64ToArrayBuffer(encryptedPrivateKeyData.iv);
+            const data = base64ToArrayBuffer(encryptedPrivateKeyData.ciphertext);
+            const aesKey = await deriveKeyFromPassword(password, salt);
+            const decryptedKeyBuffer = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, aesKey, data);
+
+            const privateKey = await window.crypto.subtle.importKey("pkcs8", decryptedKeyBuffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]);
+            const publicKey = await window.crypto.subtle.importKey("spki", base64ToArrayBuffer(publicKeyPem), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["verify"]);
+
+            const testData = new TextEncoder().encode("Key pair validation test");
+            const signature = await window.crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, testData);
+            const isValid = await window.crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signature, testData);
+            
+            if (!isValid) {
+                throw new Error("Key validation failed: Public and Private keys do not match.");
+            }
+            return true;
+        }
+
+        async function registerWithServer(username, publicKey) {
+            const response = await fetch('/api/register/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, public_key: publicKey })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message);
+            return data;
+        }
+
+        document.getElementById('generate-btn').addEventListener('click', async () => {
+            const username = document.getElementById('username-input').value.trim();
+            const statusEl = document.getElementById('step1-status');
+            if (username.length < 3) {
+                statusEl.textContent = "Username must be at least 3 characters.";
+                statusEl.className = "error";
+                return;
+            }
+            statusEl.textContent = "Checking username availability...";
+            if (await checkUsername(username)) {
+                currentUsername = username;
+                statusEl.textContent = "Generating keys...";
+                generatedKeyPair = await generateRsaKeys();
+                const publicKeyPem = await exportPublicKey(generatedKeyPair.publicKey);
+                document.getElementById('public-key-display').value = publicKeyPem;
+                navigateTo('step2-generate');
+            } else {
+                statusEl.textContent = "Username is already taken.";
+                statusEl.className = "error";
+            }
+        });
+
+        document.getElementById('import-btn').addEventListener('click', async () => {
+            const username = document.getElementById('username-input').value.trim();
+            const statusEl = document.getElementById('step1-status');
+            if (username.length < 3) {
+                 statusEl.textContent = "Username must be at least 3 characters.";
+                 statusEl.className = "error";
+                return;
+            }
+            statusEl.textContent = "Checking username availability...";
+            if (await checkUsername(username)) {
+                currentUsername = username;
+                navigateTo('step2-import');
+            } else {
+                statusEl.textContent = "Username is already taken.";
+                statusEl.className = "error";
+            }
+        });
+
+        document.getElementById('confirm-saved-checkbox').addEventListener('change', (e) => {
+            document.getElementById('register-gen-btn').disabled = !e.target.checked;
+        });
+
+        document.getElementById('save-key-btn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('step2-gen-status');
+            const password = document.getElementById('password-gen').value;
+            const passwordConfirm = document.getElementById('password-confirm-gen').value;
+
+            if (password.length < 8) {
+                statusEl.textContent = "Password must be at least 8 characters.";
+                statusEl.className = "error";
+                return;
+            }
+            if (password !== passwordConfirm) {
+                statusEl.textContent = "Passwords do not match.";
+                statusEl.className = "error";
+                return;
+            }
+
+            statusEl.textContent = "Encrypting private key...";
+            const privateKeyBuffer = await exportPrivateKey(generatedKeyPair.privateKey);
+            const encryptedPrivateKey = await encryptPrivateKey(password, privateKeyBuffer);
+            const publicKeyPem = await exportPublicKey(generatedKeyPair.publicKey);
+
+            const identityFile = {
+                username: currentUsername,
+                publicKey: publicKeyPem,
+                encryptedPrivateKey: encryptedPrivateKey
+            };
+
+            const blob = new Blob([JSON.stringify(identityFile, null, 2)], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${currentUsername}_identity.txt`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            
+            // --- SECURITY FIX: Only enable the checkbox after successful key generation/download ---
+            statusEl.textContent = "Identity file downloaded. Please confirm checkbox.";
+            statusEl.className = "success";
+            document.getElementById('confirm-saved-checkbox').disabled = false;
+        });
+        
+        document.getElementById('register-gen-btn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('step2-gen-status');
+            const password = document.getElementById('password-gen').value;
+
+            // --- SECURITY FIX: Secondary Check ---
+            // Even if the button is somehow enabled, do not proceed if password is missing/short.
+            if (password.length < 8) {
+                statusEl.textContent = "Error: Password required to encrypt keys before registration.";
+                statusEl.className = "error";
+                return;
+            }
+
+            try {
+                const publicKeyPem = await exportPublicKey(generatedKeyPair.publicKey);
+                const privateKeyBuffer = await exportPrivateKey(generatedKeyPair.privateKey);
+                const encryptedPrivateKey = await encryptPrivateKey(password, privateKeyBuffer);
+
+                const fullIdentity = {
+                    username: currentUsername,
+                    publicKey: publicKeyPem,
+                    encryptedPrivateKey: encryptedPrivateKey
+                };
+                
+                statusEl.textContent = 'Registering with server...';
+                await registerWithServer(currentUsername, publicKeyPem);
+
+                localStorage.setItem('anonymousChatUser', currentUsername);
+                localStorage.setItem('anonymousChatEncryptedIdentity', JSON.stringify(fullIdentity));
+
+                statusEl.textContent = "Registration successful! You can now log in.";
+                statusEl.className = 'success';
+            } catch(err) {
+                statusEl.textContent = `Error: ${err.message}`;
+                statusEl.className = 'error';
+            }
+        });
+        
+        document.getElementById('upload-key-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (re) => {
+                const contents = JSON.parse(re.target.result);
+                document.getElementById('public-key-import').value = contents.publicKey || '';
+                document.getElementById('private-key-import').value = JSON.stringify(contents.encryptedPrivateKey, null, 2) || '';
+            };
+            reader.readAsText(file);
+        });
+
+        document.getElementById('register-import-btn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('step2-import-status');
+            const password = document.getElementById('password-import').value;
+            const publicKeyPem = document.getElementById('public-key-import').value.trim();
+            const encryptedKeyText = document.getElementById('private-key-import').value.trim();
+
+            if (!password || !publicKeyPem || !encryptedKeyText) {
+                statusEl.textContent = "All fields are required.";
+                statusEl.className = "error";
+                return;
+            }
+
+            try {
+                const encryptedPrivateKey = JSON.parse(encryptedKeyText);
+                statusEl.textContent = "Validating key pair...";
+                await decryptAndValidateKeys(password, publicKeyPem, encryptedPrivateKey);
+                
+                const fullIdentity = {
+                    username: currentUsername,
+                    publicKey: publicKeyPem,
+                    encryptedPrivateKey: encryptedPrivateKey
+                };
+
+                statusEl.textContent = "Keys are valid. Registering with server...";
+                await registerWithServer(currentUsername, publicKeyPem);
+
+                localStorage.setItem('anonymousChatUser', currentUsername);
+                localStorage.setItem('anonymousChatEncryptedIdentity', JSON.stringify(fullIdentity));
+                
+                statusEl.textContent = "Registration successful! You can now log in.";
+                statusEl.className = 'success';
+
+            } catch(err) {
+                statusEl.textContent = `Error: ${err.message}`;
+                statusEl.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html>

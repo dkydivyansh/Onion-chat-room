@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Anonymous Chat</title>
+    <style>
+        body {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            /* CENTER THE CONTAINER */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid #fff;
+            padding: 25px;
+            box-sizing: border-box;
+            background: #000;
+            /* Content determines height */
+            height: auto; 
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+        h1 { text-transform: uppercase; text-align: center; border-bottom: 2px solid #fff; padding-bottom: 15px; margin-top: 0; }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            background: #000;
+            border: 1px solid #666;
+            color: #fff;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        input:focus { border-color: #fff; outline: none; }
+        
+        input[type="file"] {
+            margin-top: 10px;
+            width: 100%;
+            background: #111;
+            color: #fff;
+            border: 1px dashed #666;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 25px;
+            background: #fff;
+            color: #000;
+            border: none;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:hover { background: #ccc; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #status-message { margin-top: 20px; text-align: center; min-height: 1.5em; }
+        .success { color: #00ff00; }
+        .error { color: #ff3333; }
+
+        .footer-link { text-align: center; margin-top: 30px; border-top: 1px solid #333; padding-top: 15px; font-size: 0.9em; }
+        .footer-link a { color: #fff; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Access Terminal</h1>
+
+        <div id="login-form">
+            <label for="username-input">USERNAME</label>
+            <input type="text" id="username-input" placeholder="> username" autocomplete="off">
+
+            <label for="password-input">KEY PASSWORD</label>
+            <input type="password" id="password-input" placeholder="> password">
+            
+            <p style="font-size: 0.8em; color: #aaa; margin-top: 20px;">
+                Identity not found in storage? Upload key file:
+            </p>
+            <input type="file" id="upload-key-input" accept=".txt">
+
+            <button id="login-button">INITIATE SESSION</button>
+        </div>
+        
+        <p id="status-message"></p>
+        
+        <div class="footer-link">
+            <p>New user? <a href="{% url 'register_page' %}">GENERATE IDENTITY</a></p>
+        </div>
+    </div>
+
+    <script>
+        // --- EXISTING LOGIC ---
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
+        const uploadKeyInput = document.getElementById('upload-key-input');
+        const loginButton = document.getElementById('login-button');
+        const statusMessage = document.getElementById('status-message');
+
+        let fullIdentityData = null;
+        let encryptedPrivateKeyData = null; 
+
+        window.addEventListener('load', () => {
+            const storedIdentityString = localStorage.getItem('anonymousChatEncryptedIdentity');
+            const storedUsername = localStorage.getItem('anonymousChatUser');
+            if (storedUsername) {
+                usernameInput.value = storedUsername;
+            }
+            if (storedIdentityString) {
+                fullIdentityData = JSON.parse(storedIdentityString);
+                encryptedPrivateKeyData = fullIdentityData.encryptedPrivateKey;
+                statusMessage.textContent = '> Encrypted identity found locally.';
+                statusMessage.className = 'success';
+            } else {
+                statusMessage.textContent = '> Local identity missing. Upload key file.';
+                statusMessage.className = '';
+            }
+        });
+        
+        uploadKeyInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const fileContents = JSON.parse(e.target.result);
+                    if (fileContents.username && fileContents.publicKey && fileContents.encryptedPrivateKey) {
+                        fullIdentityData = fileContents;
+                        encryptedPrivateKeyData = fileContents.encryptedPrivateKey;
+                        usernameInput.value = fileContents.username;
+                        statusMessage.textContent = "> Key file loaded.";
+                        statusMessage.className = "success";
+                    } else {
+                        throw new Error("File format is incorrect.");
+                    }
+                } catch (err) {
+                    statusMessage.textContent = "Error: Invalid file format.";
+                    statusMessage.className = "error";
+                    fullIdentityData = null;
+                    encryptedPrivateKeyData = null;
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        async function deriveKeyFromPassword(password, salt) {
+            const encoder = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                'raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']
+            );
+            return await window.crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, 
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                true,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function decryptPrivateKey(password, encryptedData) {
+            const salt = base64ToArrayBuffer(encryptedData.salt);
+            const iv = base64ToArrayBuffer(encryptedData.iv);
+            const data = base64ToArrayBuffer(encryptedData.ciphertext);
+
+            const aesKey = await deriveKeyFromPassword(password, salt);
+            const decryptedKeyBuffer = await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                aesKey,
+                data
+            );
+            
+            return await window.crypto.subtle.importKey(
+                "pkcs8", 
+                decryptedKeyBuffer, 
+                { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, 
+                true, 
+                ["sign"]
+            );
+        }
+
+        loginButton.addEventListener('click', async () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            if (!username || !password) {
+                statusMessage.textContent = '> Error: Missing credentials.';
+                statusMessage.className = 'error';
+                return;
+            }
+
+            if (!encryptedPrivateKeyData) {
+                statusMessage.textContent = '> Error: Key not found.';
+                statusMessage.className = 'error';
+                return;
+            }
+
+            loginButton.disabled = true;
+            statusMessage.textContent = '> Decrypting...';
+            statusMessage.className = '';
+
+            try {
+                const userPrivateKey = await decryptPrivateKey(password, encryptedPrivateKeyData);
+                
+                statusMessage.textContent = '> Requesting challenge...';
+                let response = await fetch('/api/login/challenge/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                
+                let data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Failed to get challenge.');
+                const challenge = data.challenge;
+
+                statusMessage.textContent = '> Signing...';
+                const challengeBuffer = new TextEncoder().encode(challenge);
+                const signatureBuffer = await window.crypto.subtle.sign("RSASSA-PKCS1-v1_5", userPrivateKey, challengeBuffer);
+                
+                const signatureB64 = btoa(String.fromCharCode.apply(null, new Uint8Array(signatureBuffer)));
+
+                statusMessage.textContent = '> Verifying...';
+                response = await fetch('/api/login/verify/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        signature: signatureB64
+                    })
+                });
+
+                data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Verification failed.');
+                
+                statusMessage.textContent = '> Success.';
+                statusMessage.className = 'success';
+
+                if (fullIdentityData) {
+                    localStorage.setItem('anonymousChatEncryptedIdentity', JSON.stringify(fullIdentityData));
+                    localStorage.setItem('anonymousChatUser', username);
+                }
+                
+                if (data.redirect_url) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 500);
+                }
+
+            } catch (error) {
+                console.error("Login failed:", error);
+                if (error instanceof DOMException && error.name === 'OperationError') {
+                    statusMessage.textContent = '> Decryption failed. Bad password?';
+                } else {
+                    statusMessage.textContent = `> Error: ${error.message}`;
+                }
+                statusMessage.className = 'error';
+            } finally {
+                loginButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

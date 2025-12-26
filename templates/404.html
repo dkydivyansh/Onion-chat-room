@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found | 404</title>
+    <style>
+        /* Shared Styles from Login Page */
+        body {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid #fff;
+            padding: 25px;
+            box-sizing: border-box;
+            background: #000;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        h1 { 
+            text-transform: uppercase; 
+            border-bottom: 2px solid #fff; 
+            padding-bottom: 15px; 
+            margin-top: 0; 
+            color: #ff3333; /* Red for Error */
+        }
+        p { margin-top: 20px; line-height: 1.5; }
+        
+        .code-display {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 20px 0;
+            letter-spacing: 5px;
+            color: #ff3333;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 25px;
+            background: #fff;
+            color: #000;
+            border: none;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:hover { background: #ccc; }
+        
+        a { text-decoration: none; color: black; display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Page Not Found</h1>
+        
+        <div class="code-display">404</div>
+
+        <p>> We couldn't find the page you were looking for.</p>
+        <p>> Please check the URL or return to the homepage.</p>
+
+        <button>
+            <a href="/">GO TO HOMEPAGE</a>
+        </button>
+    </div>
+</body>
+</html>

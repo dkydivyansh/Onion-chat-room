@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout</title>
+    <style>
+        body { 
+            font-family: "Courier New", Courier, monospace; 
+            background-color: #000; 
+            color: #fff; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            text-align: center; 
+        }
+        p { font-size: 1.2rem; border: 1px solid #fff; padding: 20px; }
+    </style>
+</head>
+<body>
+    <p>> TERMINATING SESSION... WIPING DATA...</p>
+
+    <script>
+        window.onload = function() {
+            localStorage.removeItem('anonymousChatUser');
+            localStorage.removeItem('anonymousChatEncryptedIdentity'); 
+            setTimeout(function() {
+                window.location.href = "{% url 'login_page' %}";
+            }, 1500);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --border-color: #ffffff;
+            --accent-color: #00ff00;
+            --error-color: #ff3333;
+        }
+        body { 
+            font-family: "Courier New", Courier, monospace;
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container { 
+            width: 100%; max-width: 900px; 
+            border: 1px solid var(--border-color); 
+            padding: 20px; 
+            box-sizing: border-box; 
+            height: auto;
+            background: #000;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+        }
+
+        .header { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid var(--border-color); 
+            padding-bottom: 15px; 
+            margin-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 1.5rem; text-transform: uppercase; }
+        
+        .header-actions { display: flex; gap: 10px; }
+        .header a, .header button { 
+            color: var(--text-color); 
+            text-decoration: none; 
+            border: 1px solid var(--border-color); 
+            padding: 5px 10px; 
+            font-size: 0.9rem; 
+            background: #000;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+        .header a:hover, .header button:hover { background-color: var(--text-color); color: var(--bg-color); }
+        
+        .btn-danger { color: var(--error-color) !important; border-color: var(--error-color) !important; }
+        .btn-danger:hover { background-color: var(--error-color) !important; color: #000 !important; }
+
+        .tabs { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 10px; 
+        }
+        .tab-button { 
+            background: #000; 
+            border: 1px solid #333; 
+            color: #888; 
+            padding: 10px 15px; 
+            cursor: pointer; 
+            flex: 1; 
+            text-align: center;
+            font-family: inherit;
+        }
+        .tab-button.active { 
+            border-color: var(--border-color); 
+            color: var(--text-color); 
+            font-weight: bold; 
+            background: #111;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .invite-form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .invite-form input { 
+            flex-grow: 1; 
+            padding: 10px; 
+            background: #000; 
+            border: 1px solid #666; 
+            color: var(--text-color); 
+            font-family: inherit; 
+        }
+        .invite-form button { 
+            padding: 10px 20px; 
+            background: var(--text-color); 
+            color: var(--bg-color); 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+
+        .list { list-style: none; padding: 0; }
+        .list-item { 
+            background-color: #000; 
+            border: 1px solid #333; 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px;
+        }
+        
+        @media (min-width: 600px) {
+            .list-item { flex-direction: row; justify-content: space-between; align-items: center; }
+        }
+
+        button.action-btn { 
+            padding: 5px 10px; 
+            border: 1px solid var(--border-color); 
+            background: #000; 
+            color: var(--text-color); 
+            cursor: pointer; 
+            margin-right: 5px; 
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+        button.action-btn:hover { background: var(--text-color); color: var(--bg-color); }
+        
+        .delete-btn { border-color: var(--error-color); color: var(--error-color); }
+        .delete-btn:hover { background: var(--error-color); color: #000; }
+        
+        .accept-btn { border-color: var(--accent-color); color: var(--accent-color); }
+        .accept-btn:hover { background: var(--accent-color); color: #000; }
+
+        .chat-link { color: var(--text-color); text-decoration: none; font-weight: bold; display: block; padding: 5px 0; }
+        .chat-link:hover { text-decoration: underline; color: var(--accent-color); }
+
+        .status-tag { padding: 2px 6px; border: 1px solid #555; font-size: 0.8em; text-transform: uppercase; }
+        .status-pending { color: #ffff00; border-color: #ffff00; }
+        .status-accepted { color: var(--accent-color); border-color: var(--accent-color); }
+        .status-declined { color: var(--error-color); border-color: var(--error-color); }
+
+        .empty-state { color: #555; text-align: center; border: 1px dashed #333; padding: 20px; }
+        #status-message, #invite-status { text-align: center; font-weight: bold; padding: 5px; }
+        .success { color: var(--accent-color); }
+        .error { color: var(--error-color); }
+
+        /* MODAL */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: #000;
+            border: 2px solid #fff;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255,255,255,0.1);
+        }
+        .modal-box h2 { border-bottom: 1px solid #fff; padding-bottom: 15px; margin-top: 0; font-size: 1.5rem; text-transform: uppercase; }
+        .modal-box p { color: #ccc; }
+        .modal-box input {
+            width: 100%; padding: 15px; margin: 20px 0;
+            background: #000; color: #fff; border: 1px solid #666;
+            box-sizing: border-box; text-align: center; font-size: 1.1rem;
+        }
+        .modal-box .btn-modal {
+            width: 100%; padding: 15px; background: #fff; color: #000;
+            border: none; font-weight: bold; cursor: pointer; 
+            text-transform: uppercase; font-size: 1rem; margin-top: 10px;
+        }
+        .modal-box .btn-modal.danger { background: var(--error-color); color: #fff; }
+        .modal-box .btn-modal.cancel { background: #333; color: #fff; }
+        .modal-error { color: var(--error-color); margin-top: 15px; font-weight: bold; min-height: 1.5em;}
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    
+    <div id="delete-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h2 style="color: var(--error-color)">SELF DESTRUCT</h2>
+            <p>Enter password to decrypt key and sign deletion request.</p>
+            <form id="delete-form">
+                <input type="password" id="delete-password" placeholder="ENTER PASSWORD" autocomplete="current-password">
+                <button type="submit" class="btn-modal danger">CONFIRM DELETION</button>
+                <button type="button" class="btn-modal cancel" onclick="toggleDeleteModal(false)">CANCEL</button>
+                <p id="delete-error" class="modal-error"></p>
+            </form>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Term: {{ username }}</h1>
+            <div class="header-actions">
+                <button class="btn-danger" onclick="toggleDeleteModal(true)">DELETE ACCOUNT</button>
+                <a href="{% url 'logout_user' %}">[ LOGOUT ]</a>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="openTab(event, 'chats')">ACTIVE CHATS</button>
+            <button class="tab-button" onclick="openTab(event, 'received-invitations')">
+                INBOX <span id="invite-count">{% if pending_invitations.count > 0 %}({{ pending_invitations.count }}){% endif %}</span>
+            </button>
+            <button class="tab-button" onclick="openTab(event, 'sent-invitations')">OUTBOX</button>
+        </div>
+
+        <div id="chats" class="tab-content active">
+            <div class="invite-form">
+                <input type="text" id="invite-username-input" placeholder="> Invite username...">
+                <button onclick="sendInvite()">INITIATE</button>
+            </div>
+            <p id="invite-status"></p>
+            
+            <h2 style="border-bottom: 1px solid #fff; padding-bottom: 5px; font-size: 1.2rem;">CONNECTIONS</h2>
+            {% if active_chats %}
+                <ul class="list">
+                    {% for chat in active_chats %}
+                    <li id="chat-{{ chat.id }}" class="list-item">
+                        {% for member in chat.members.all %}
+                            {% if member.username != username %}
+                                <a class="chat-link" href="{% url 'chat_room_page' chat.id %}">
+                                    > CONNECT: {{ member.username }}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                        <button class="action-btn delete-btn" onclick="deleteChatRoom('{{ chat.id }}')">TERMINATE</button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                 <p class="empty-state">No active connections.</p>
+            {% endif %}
+        </div>
+
+        <div id="received-invitations" class="tab-content">
+            <h2 style="border-bottom: 1px solid #fff; padding-bottom: 5px; font-size: 1.2rem;">INCOMING</h2>
+            {% if pending_invitations %}
+                <ul id="invitation-list" class="list">
+                    {% for inv in pending_invitations %}
+                    <li id="inv-{{ inv.id }}" class="list-item">
+                        <p>FROM: <strong>{{ inv.inviter.username }}</strong></p>
+                        <div>
+                            <button class="action-btn accept-btn" onclick="respondToInvite({{ inv.id }}, 'accept')">ACCEPT</button>
+                            <button class="action-btn delete-btn" onclick="respondToInvite({{ inv.id }}, 'decline')">DECLINE</button>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="empty-state">No pending requests.</p>
+            {% endif %}
+            
+            {% if declined_invitations %}
+                 <h3 style="margin-top:30px; color:#555;">ARCHIVED (DECLINED)</h3>
+                 <ul class="list">
+                    {% for inv in declined_invitations %}
+                    <li id="declined-received-inv-{{ inv.id }}" class="list-item">
+                        <p style="color:#777;">Declined from: {{ inv.inviter.username }}</p>
+                        <button class="action-btn" onclick="removeDeclinedByInvitee({{ inv.id }})">REMOVE</button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div id="sent-invitations" class="tab-content">
+            <h2 style="border-bottom: 1px solid #fff; padding-bottom: 5px; font-size: 1.2rem;">OUTGOING</h2>
+            {% if sent_invitations %}
+                <ul class="list">
+                    {% for inv in sent_invitations %}
+                    <li id="sent-inv-{{ inv.id }}" class="list-item">
+                        <p>TO: <strong>{{ inv.invitee.username }}</strong></p>
+                        <span class="status-tag status-{{ inv.status|lower }}">{{ inv.get_status_display }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="empty-state">No outgoing requests.</p>
+            {% endif %}
+        </div>
+        
+        <p id="status-message"></p>
+    </div>
+    
+    {{ declined_invitations_for_json|json_script:"declined-invitations-data" }}
+
+    <script>
+        // --- CRYPTO HELPERS (Required for Deletion Signature) ---
+        const cryptoHelpers = {
+            base64ToArrayBuffer: (base64) => { const binaryString = window.atob(base64); const len = binaryString.length; const bytes = new Uint8Array(len); for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); } return bytes.buffer; },
+            arrayBufferToBase64: (buffer) => { let binary = ''; const bytes = new Uint8Array(buffer); for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); } return window.btoa(binary); },
+            deriveKeyFromPassword: async (password, salt) => { const enc = new TextEncoder(); const keyMaterial = await window.crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']); return await window.crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']); },
+            decryptPrivateKey: async (encryptedData, password) => { const salt = cryptoHelpers.base64ToArrayBuffer(encryptedData.salt); const iv = cryptoHelpers.base64ToArrayBuffer(encryptedData.iv); const data = cryptoHelpers.base64ToArrayBuffer(encryptedData.ciphertext); const aesKey = await cryptoHelpers.deriveKeyFromPassword(password, salt); const decryptedPkcs8 = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, aesKey, data); return await window.crypto.subtle.importKey("pkcs8", decryptedPkcs8, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]); }
+        };
+
+        // --- UI LOGIC ---
+
+        function openTab(evt, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        async function sendInvite() {
+            const usernameInput = document.getElementById('invite-username-input');
+            const statusEl = document.getElementById('invite-status');
+            const username = usernameInput.value.trim();
+            if (!username) { statusEl.textContent = 'Enter username.'; statusEl.className = 'error'; return; }
+            try {
+                const response = await fetch("{% url 'create_chat_and_invite' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    statusEl.textContent = data.message; statusEl.className = 'success'; usernameInput.value = '';
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    statusEl.textContent = `Error: ${data.message}`; statusEl.className = 'error';
+                }
+            } catch (error) { statusEl.textContent = 'Error.'; statusEl.className = 'error'; }
+        }
+
+        async function respondToInvite(invitationId, response) {
+            const statusEl = document.getElementById('status-message');
+            try {
+                const res = await fetch(`/api/invitations/${invitationId}/respond/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ response: response })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    statusEl.textContent = data.message; statusEl.className = 'success';
+                    document.getElementById(`inv-${invitationId}`).remove();
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    statusEl.textContent = `Error: ${data.message}`; statusEl.className = 'error';
+                }
+            } catch (error) { statusEl.textContent = 'Error.'; statusEl.className = 'error'; }
+        }
+
+        async function removeDeclinedByInvitee(invitationId) {
+            if (!confirm('Remove this invitation record?')) return;
+            const statusEl = document.getElementById('status-message');
+            try {
+                const res = await fetch(`/api/invitations/${invitationId}/remove-by-invitee/`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusEl.textContent = data.message; statusEl.className = 'success';
+                    document.getElementById(`declined-received-inv-${invitationId}`).remove();
+                } else {
+                    statusEl.textContent = `Error: ${data.message}`; statusEl.className = 'error';
+                }
+            } catch (error) { statusEl.textContent = 'Error.'; statusEl.className = 'error'; }
+        }
+        
+        async function deleteChatRoom(roomId) {
+            if (!confirm('PERMANENTLY DELETE CHAT?')) return;
+            const statusEl = document.getElementById('status-message');
+            try {
+                const res = await fetch(`/api/chats/${roomId}/delete/`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusEl.textContent = data.message; statusEl.className = 'success';
+                    document.getElementById(`chat-${roomId}`).remove();
+                } else {
+                    statusEl.textContent = `Error: ${data.message}`; statusEl.className = 'error';
+                }
+            } catch (error) { statusEl.textContent = 'Error.'; statusEl.className = 'error'; }
+        }
+
+        // --- ACCOUNT DELETION LOGIC ---
+        function toggleDeleteModal(show) {
+            const modal = document.getElementById('delete-modal');
+            const passInput = document.getElementById('delete-password');
+            if (show) {
+                modal.classList.remove('hidden');
+                passInput.value = '';
+                passInput.focus();
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('delete-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('delete-password').value;
+            const errorEl = document.getElementById('delete-error');
+            errorEl.textContent = "Processing...";
+            
+            try {
+                // 1. Decrypt Private Key
+                const storedIdentity = localStorage.getItem('anonymousChatEncryptedIdentity');
+                if (!storedIdentity) throw new Error("Local identity not found.");
+                
+                const encryptedKey = JSON.parse(storedIdentity).encryptedPrivateKey;
+                const privateKey = await cryptoHelpers.decryptPrivateKey(encryptedKey, password);
+                
+                // 2. Request Challenge
+                errorEl.textContent = "Requesting authorization...";
+                let res = await fetch('/api/account/delete/challenge/', { method: 'POST' });
+                let data = await res.json();
+                if (!res.ok) throw new Error(data.message);
+                const challenge = data.challenge;
+
+                // 3. Sign Challenge
+                errorEl.textContent = "Signing request...";
+                const challengeBuffer = new TextEncoder().encode(challenge);
+                const signatureBuffer = await window.crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, challengeBuffer);
+                const signatureB64 = cryptoHelpers.arrayBufferToBase64(signatureBuffer);
+
+                // 4. Send Signature to Confirm Deletion
+                errorEl.textContent = "Deleting account...";
+                res = await fetch('/api/account/delete/verify/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signature: signatureB64 })
+                });
+                data = await res.json();
+                
+                if (res.ok) {
+                    // 5. Cleanup Local Data
+                    localStorage.removeItem('anonymousChatUser');
+                    localStorage.removeItem('anonymousChatEncryptedIdentity');
+                    errorEl.textContent = "SUCCESS. GOODBYE.";
+                    errorEl.style.color = "#00ff00";
+                    setTimeout(() => window.location.href = data.redirect_url, 1500);
+                } else {
+                    throw new Error(data.message);
+                }
+
+            } catch (err) {
+                console.error(err);
+                if (err.name === 'OperationError') {
+                    errorEl.textContent = "INCORRECT PASSWORD.";
+                } else {
+                    errorEl.textContent = `Error: ${err.message}`;
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
