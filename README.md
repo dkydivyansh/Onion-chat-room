@@ -37,7 +37,7 @@
 </ul>
 <h2 id="installation-and-deployment">Installation and Deployment</h2>
 <h3 id="repository-acquisition">1. Repository Acquisition</h3>
-<pre><code class="language-bash">git clone [https://github.com/dkydivyansh/Onion-chat-room.git](https://github.com/dkydivyansh/Onion-chat-room.git)
+<pre><code class="language-bash">git clone https://github.com/dkydivyansh/Onion-chat-room.git
 cd Onion-chat-room
 </code></pre>
 <h3 id="environment-configuration">2. Environment Configuration</h3>
